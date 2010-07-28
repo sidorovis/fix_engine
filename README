@@ -1,0 +1,12 @@
+pr-FIX is a (minimalistic) implementation of the Financial Information eXchange
+(FIX) Protocol, written in Ruby. The included files are presently:
+
+README          This file
+pr-fix.rb       The library itself. Depends on libxml.
+banzai_test.rb  A simple test script that connects to the EXEC program from
+                QuickFIX/J. Depends on rev.
+cnx_test.rb     A simple test script that connects to the Currenex ECN and
+                subscribes to and displays quotes for USD/JPY. Not recently
+                tested. Depends on rev.
+
+Author: Joseph Dunn <joseph@magnesium.net>
