@@ -82,6 +82,7 @@ class FIX::Message
         raise "No field '#{name}' in schema."
       end
     end
+	return self
   end
 
   protected
