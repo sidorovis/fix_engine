@@ -8,6 +8,9 @@ require 'libxml'
 class FIX
 end
 
+# Fix Session protocol class
+# Created to parse XML schema that describes possible messages.
+# That helps to validate outgoing messaages
 class FIX::Session
   attr_reader :schema, :schema_fields
   attr_accessor :begin_string, :properties
