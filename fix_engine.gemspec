@@ -18,9 +18,15 @@ Gem::Specification.new do |s|
 				"lib/fix_engine.rb", 
 				"lib/fix_response.rb", 
 				"lib/fix_session.rb", 
+	
+				"lib/system_session.rb", 
+
 				"test/test_fix_response.rb", 
 				"test/test_fix_message.rb", 
 				"test/test_fix_session.rb", 
+
+				"test/test_system_session.rb", 
+
 				"Rakefile" ]
   s.homepage    = 'http://github.com/sidorovis/fix_engine'
 end
