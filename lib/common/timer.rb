@@ -21,9 +21,12 @@ class FIX::Common::Timer
 		@working = false
 	end
 	def start
+		@working_protector_.synchronize do
+			return self if @working
+			@working = true
+		end
 		@thread = Thread.new do
 			@working_protector_.lock
-			@working = true
 			while @working do
 				@working_protector_.unlock
 				st = Time.now

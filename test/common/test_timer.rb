@@ -39,6 +39,7 @@ class TimerTest < Test::Unit::TestCase
 		assert_nothing_raised( Exception ) { FIX::Common::Timer.new.process_ctrl_c.wait.stop }
 		assert_nothing_raised( Exception ) { TimerTestHelper.new.wait }
 		assert_nothing_raised( Exception ) { TimerTestHelper.new.start.wait.stop }
+		assert_nothing_raised( Exception ) { TimerTestHelper.new.start.start.start.start.start.start.wait.stop }
 		assert_nothing_raised( Exception ) { TimerTestExceptionHelper.new.start.wait }
 		assert_equal( TimerTestExceptionHelper.new(2).start.wait.count_call, 2 )
 		assert_equal( TimerTestExceptionHelper.new(5).start.wait.count_call, 5 )
