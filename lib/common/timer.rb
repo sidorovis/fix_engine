@@ -8,10 +8,10 @@ require 'thread'
 class FIX
 end
 
-class FIX::Engine
+class FIX::Common
 end
 
-class FIX::Engine::SystemServer
+class FIX::Common::Timer
 	attr_accessor :sleep_intervale
 	attr_reader :working
 	def initialize( sleep_intervale = 0.5 )
@@ -52,10 +52,7 @@ class FIX::Engine::SystemServer
 		self
 	end
 	def process_ctrl_c
-		@working_protector_.synchronize do
-			@working_ = false
-			trap("INT") { just_stop_ }
-		end
+		trap("INT") { just_stop_ }
 		self
 	end
 	private

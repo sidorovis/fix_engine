@@ -1,0 +1,19 @@
+if ( __FILE__ == $0 )
+	$LOAD_PATH.unshift File.dirname(__FILE__)
+end
+
+require 'socket'
+
+class FIX
+end
+
+class FIX::Engine
+end
+
+class FIX::Engine::Acceptor
+	attr_reader :port
+	def initialize( port )
+		@port = port
+		@server_ = TCPServer.new @port
+	end
+end

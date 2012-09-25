@@ -16,7 +16,9 @@ class FIX::Session
   attr_accessor :begin_string, :properties
 
   def initialize(begin_string, schema)
+	old_schema = schema
 	schema = File.dirname(__FILE__) + "/" + schema if (!File.exists?( schema ))
+	schema = File.dirname(__FILE__) + "/../" + old_schema if (!File.exists?( schema ))
     parser = LibXML::XML::Parser.file(schema)
     @schema = parser.parse
 
