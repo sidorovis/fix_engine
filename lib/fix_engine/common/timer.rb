@@ -11,6 +11,7 @@ end
 class FIX::Common
 end
 
+# FIX::Common::Timer class use Threads, please use Thread.abort_on_exception = true to debug/work with application
 class FIX::Common::Timer
 	attr_accessor :sleep_intervale
 	attr_reader :working

@@ -1,7 +1,7 @@
 lib_rb_files = Dir.glob( File.join( "lib", "**", "*.rb") )
 lib_etc_files = Dir.glob( File.join( "lib/etc", "**", "*.xml") )
 test_rb_files = Dir.glob( File.join( "test", "**", "*.rb") )
-
+puts lib_rb_files + test_rb_files + lib_etc_files + ["Rakefile"]
 Gem::Specification.new do |s|
   s.name        = 'fix_engine'
   s.version     = '0.0.3'

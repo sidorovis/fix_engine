@@ -2,7 +2,7 @@ if ( __FILE__ == $0 )
 	$LOAD_PATH.unshift File.dirname(__FILE__)
 end
 
-require 'fix/session'
+require 'fix_engine/fix/session'
 require 'test/unit'
 
 class FixSessionTest < Test::Unit::TestCase

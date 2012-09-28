@@ -11,9 +11,11 @@ end
 class FIX::Common
 end
 
+# FIX::Common::SystemProcessor class use Threads, please use Thread.abort_on_exception = true to debug/work with application
 class FIX::Common::SystemProcessor
 	attr_reader :working
-	def initialize()
+	def initialize( sleep_time = 0.5 )
+		@sleep_time = sleep_time
 		@working_protector_ = Mutex.new
 		@waiter_ = ConditionVariable.new
 		@working = false
@@ -24,10 +26,14 @@ class FIX::Common::SystemProcessor
 	end
 	def stop
 		just_stop_
-		self
+		wait
 	end
 	def wait
-		@working_protector_.synchronize { @waiter_.wait( @working_protector_ ) if @working }
+		@working_protector_.synchronize do 
+			while @working
+				@waiter_.wait( @working_protector_, @sleep_time )
+			end
+		end
 		self
 	end
 	def process_ctrl_c
