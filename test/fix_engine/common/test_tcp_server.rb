@@ -9,13 +9,14 @@ Thread.abort_on_exception = true
 
 class TCPServerObserver < FIX::Common::TCPServerObserver
 	attr_reader :actions, :clients
-	attr_accessor :connection_signal, :disconnection_signal
+	attr_accessor :connection_signal, :disconnection_signal, :received_data, :data
 	def initialize
 		@actions = []
 		@clients = Set.new
 		@mutex = Mutex.new
 		@waiter = ConditionVariable.new
 		@received_data = 0
+		@data = ""
 		@connection_signal = false
 		@disconnection_signal = false
 	end
@@ -65,9 +66,10 @@ class TCPServerObserver < FIX::Common::TCPServerObserver
 	def on_client_receive_data( client, data )
 		@mutex.synchronize do
 			@received_data += data.size
+			@data += data
 			@waiter.signal
 		end
-		@actions << "on_client_receive_data"
+		@actions << "on_receive_data(#{data})"
 	end	
 end
 
@@ -137,31 +139,105 @@ class FixAcceptorTest < Test::Unit::TestCase
 			assert_equal( server.connected_clients[0].class, TCPSocket )
 			observer.clients.each { |client| server.disconnect( client ) }
 			observer.wait_disconnection
-			assert_raise( Errno::ECONNRESET ) { client.read( 1 ) }
+			assert_equal( "", client.recv( 128 ) )
+			client.close
+			assert_equal( server.stop, server )
+			assert_equal( ['before_start', 'after_start', 'on_client_connect', 'on_client_disconnect', 'before_stop', 'after_stop'], observer.actions )
+		end
+	end
+	def test_read_with_observer()
+		assert_nothing_raised( Exception ) do
+			observer = TCPServerObserver.new
+			server = FIX::Common::TCPServer.new( 2000, observer )
+			assert_equal( server.start, server )
+			client = TCPSocket.new( "localhost", 2000 )
+			observer.wait_connection
+			assert_equal( server.connected_clients.size, 1 )
+			assert_equal( server.connected_clients[0].class, TCPSocket )
+
+			observer.received_data = 0
+			th = Thread.new { client.write( "hello world, example message" ) }
+			th.join
+			observer.wait_receive_data( "hello world, example message".size ) 
+
+			observer.received_data = 0
+			th = Thread.new { client.write( "second message" ) }
+			th.join
+			observer.wait_receive_data( "second message".size ) 
+
+			server.send( server.connected_clients[0], "answer example" )
+			answer = client.readpartial( 128 )
+			assert_equal( "answer example", answer )
+
+			server.send( server.connected_clients[0], "Yo-Ho-Ho!" )
+			answer = client.readpartial( 128 )
+			assert_equal( "Yo-Ho-Ho!", answer )
+
+			observer.received_data = 0
+			th = Thread.new { client.write( "Yo-Ho-Ho!" ) }
+			th.join
+			observer.wait_receive_data( "Yo-Ho-Ho!".size ) 
+
+			server.send( server.connected_clients[0], "Answer example" )
+			answer = client.readpartial( 128 )
+			assert_equal( "Answer example", answer )
+
+			observer.received_data = 0
+			th = Thread.new { client.write( "Hello developer, this is a test message. If you like it - call +37517102" ) }
+			th.join
+			observer.wait_receive_data( "Hello developer, this is a test message. If you like it - call +37517102".size ) 
+
+			assert_equal( server.stop, server )
+			assert_equal( [
+				'before_start', 'after_start', 
+				'on_client_connect', 
+				'on_receive_data(hello world, example message)', 'on_receive_data(second message)', 'on_receive_data(Yo-Ho-Ho!)', 'on_receive_data(Hello developer, this is a test message. If you like it - call +37517102)', 
+				'before_stop', 'on_client_disconnect', 'after_stop'], observer.actions )
+
+		end
+	end
+	def test_multi_thread_reader
+		assert_nothing_raised( Exception ) do
+			observer = TCPServerObserver.new
+			server = FIX::Common::TCPServer.new( 2000, observer )
+			assert_equal( server.start, server )
+			client = TCPSocket.new( "localhost", 2000 )
+			observer.wait_connection
+			assert_equal( server.connected_clients.size, 1 )
+			assert_equal( server.connected_clients[0].class, TCPSocket )
+			client_socket = server.connected_clients[0]
+
+			listen_thread = Thread.new do
+			    loop do
+					observer.received_data = 0
+					observer.data = ""
+					observer.wait_receive_data( 5 )
+					length = observer.data.to_i
+					observer.received_data = 0
+					observer.data = ""
+					observer.wait_receive_data( length )
+					break if length == 3 && observer.data == "END"
+					server.send( client_socket, "prefix #{length} #{observer.data}" )
+				end
+			end
+			writer_thread = Thread.new do
+				100.times do |i|
+					message = "hello world message #{i}"
+					client.write( "%05d" % message.size )
+					client.write( message )
+					answer = client.readpartial( 128 )
+					assert_equal( "prefix #{message.size} #{message}", answer )
+				end
+				message = "END"
+				client.write( "%05d" % message.size )
+				client.write( message )
+			end
+			writer_thread.join
+			listen_thread.join
+			client.close
+			observer.wait_disconnection
+			assert_equal( server.connected_clients.size, 0 )
 			assert_equal( server.stop, server )
 		end
 	end
 end
-
-=begin
-
-		assert_nothing_raised( Exception ) do
-			observer = TCPServerObserver.new
-			server = FIX::Common::TCPServer.new( "test_tcp_server", 2000, observer ).start
-#			assert_equal( server.connected_clients.size,  0)
-			client = TCPSocket.new( "localhost", 2000 )
-			observer.wait_connection
-#			assert_equal( server.connected_clients.size, 1 )
-			client.send("FIXMESSAGENOTDEFINED#{1.chr}MVUHAHA#{1.chr}1", 0 )
-			client.send("FIXMESSAGENOTDEFINED#{1.chr}MVUHAHA#{1.chr}2", 0 )
-			observer.wait_receive_data( "FIXMESSAGENOTDEFINED#{1.chr}MVUHAHA#{1.chr}1".size + "FIXMESSAGENOTDEFINED#{1.chr}MVUHAHA#{1.chr}2".size )
-			observer.disconnect( server )
-#			assert_equal( server.connected_clients.size, 0 )
-			client.send("FIXMESSAGENOTDEFINED#{1.chr}MVUHAHA#{1.chr}3", 0 )
-			client.close
-			server.stop
-#			assert_equal( ["before_start", "after_start", "on_client_connect", "on_client_receive_data", "disconnect", "before_stop", "after_stop" ], observer.actions )
-#		end
-#	end
-#end
-=end

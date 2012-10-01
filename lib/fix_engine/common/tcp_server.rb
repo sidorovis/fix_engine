@@ -61,7 +61,7 @@ class FIX::Common::TCPServer
 		@server_.close
 		@accept_thread_.join
 		@client_sockets_protector_.synchronize do
-			@client_sockets_.each do |socket| 
+			@client_sockets_.each do |socket, thread| 
 				disconnect_socket_protector_synchronized_( socket )
 			end
 		end
@@ -72,7 +72,10 @@ class FIX::Common::TCPServer
 		return false if !add_client_socket_to_closing_set_( client ) 
 		client.close
 		@client_sockets_protector_.synchronize do
-			return false unless @client_sockets_.include? client
+			unless @client_sockets_.include? client
+				del_client_socket_to_closing_set_( client )
+				return false 
+			end
 			read_thread = @client_sockets_.delete client
 			read_thread.join
 		end
@@ -97,7 +100,10 @@ class FIX::Common::TCPServer
 		return false if !add_client_socket_to_closing_set_( client ) 
 		client.close
 		@client_sockets_protector_.synchronize do
-			return false unless @client_sockets_.include? client
+			unless @client_sockets_.include? client
+				del_client_socket_to_closing_set_( client )
+				return false 
+			end
 			@client_sockets_.delete client
 		end
 		@observer_.on_client_disconnect( client ) if @observer_
@@ -108,7 +114,10 @@ class FIX::Common::TCPServer
 		return false if !add_client_socket_to_closing_set_( client ) 
 		client.close
 
-		return false unless @client_sockets_.include? client
+		unless @client_sockets_.include? client
+			del_client_socket_to_closing_set_( client )
+			return false 
+		end
 		read_thread = @client_sockets_.delete client
 		read_thread.join
 
@@ -125,7 +134,7 @@ class FIX::Common::TCPServer
 	def send( client, message )
 		sent_amount = 0
 		begin
-			sent_amount = client.send( message )
+			sent_amount = client.send( message, 0 )
 		rescue Errno::ECONNRESET
 			disconnect( client )
 		end
@@ -137,7 +146,7 @@ class FIX::Common::TCPServer
 			while @working
 				begin
 					client = @server_.accept
-				rescue Errno::ENOTSOCK, IOError
+				rescue Errno::ENOTSOCK, IOError, Errno::EBADF
 					break
 				end
 				run_client_processing_thread_ client
@@ -148,8 +157,8 @@ class FIX::Common::TCPServer
 		client_processing_thread = Thread.new do
 			while @working do
 				begin
-					received = client.read( @buffer_size )
-				rescue IOError
+					received = client.readpartial( @buffer_size )
+				rescue IOError, Errno::EBADF
 					break
 				end
 				break if !received || received.empty? 
