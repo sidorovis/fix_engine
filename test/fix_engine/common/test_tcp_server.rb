@@ -29,11 +29,16 @@ class TCPServerObserver < FIX::Common::TCPServerObserver
 		@mutex.synchronize { @waiter.wait( @mutex ) }
 	end
 	def wait_receive_data( count )
+		result = ""
 		@mutex.synchronize do
 			while count > @received_data
 				@waiter.wait( @mutex )
 			end
+			result = @data[0..count-1]
+			@data = @data[count..@data.length]
+			@received_data -= count
 		end
+		return result
 	end
 	def disconnect( server )
 		@actions << "disconnect"
@@ -73,8 +78,7 @@ class TCPServerObserver < FIX::Common::TCPServerObserver
 	end	
 end
 
-
-class FixAcceptorTest < Test::Unit::TestCase
+class TCPServerTest < Test::Unit::TestCase
 	def test_initialize()
 		assert_raise( ArgumentError ) { FIX::Common::TCPServer.new }
 		assert_nothing_raised( ArgumentError ) { FIX::Common::TCPServer.new( 2000 ) }
@@ -209,15 +213,11 @@ class FixAcceptorTest < Test::Unit::TestCase
 
 			listen_thread = Thread.new do
 			    loop do
-					observer.received_data = 0
-					observer.data = ""
-					observer.wait_receive_data( 5 )
-					length = observer.data.to_i
-					observer.received_data = 0
-					observer.data = ""
-					observer.wait_receive_data( length )
-					break if length == 3 && observer.data == "END"
-					server.send( client_socket, "prefix #{length} #{observer.data}" )
+					result = observer.wait_receive_data( 5 )
+					length = result.to_i
+					result = observer.wait_receive_data( length )
+					break if length == 3 && result == "END"
+					server.send( client_socket, "prefix #{length} #{result}" )
 				end
 			end
 			writer_thread = Thread.new do
@@ -241,3 +241,4 @@ class FixAcceptorTest < Test::Unit::TestCase
 		end
 	end
 end
+

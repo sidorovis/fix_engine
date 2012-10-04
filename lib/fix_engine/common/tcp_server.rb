@@ -158,7 +158,7 @@ class FIX::Common::TCPServer
 			while @working do
 				begin
 					received = client.readpartial( @buffer_size )
-				rescue IOError, Errno::EBADF
+				rescue IOError, Errno::EBADF, Errno::ECONNRESET
 					break
 				end
 				break if !received || received.empty? 
